@@ -62,7 +62,7 @@ executable my-json-parser
     main-is:          Main.hs
 
     -- Modules included in this executable, other than Main.
-    other-modules:    Lexer
+    -- other-modules:
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
@@ -76,6 +76,14 @@ executable my-json-parser
     -- Base language which the package is written in.
     default-language: GHC2021
 
+library
+    hs-source-dirs:   lib
+    exposed-modules:
+                      LexerSimple
+    build-depends:
+        base ^>=4.18.2.1,
+    
+
 test-suite my-json-parser-tests
     type: exitcode-stdio-1.0
     main-is: Main.hs
@@ -84,7 +92,9 @@ test-suite my-json-parser-tests
         base ^>=4.18.2.1,
         test-framework,
         test-framework-hunit,
+        my-json-parser,
         HUnit,
+        lens,
     other-modules:
-        ExampleTest
-
+        ExampleTest,
+        Lexer.Simple,
