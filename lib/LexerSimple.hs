@@ -20,7 +20,7 @@ data MULTIPOINT
   | Boolean Bool
 
 data Token
-  = Wrapper (Maybe WRAP, Maybe WRAP)
+  = Wrapper WRAP
   | Delimiter DELIM
   | MoreWork MULTIPOINT
   | EOF
@@ -34,6 +34,44 @@ matchSymbol x = case x of
   '{' -> BRACE
   _ -> Other
 
+{--
+  NOTE: need a custom monad, to multiplex different lexing functions.
+
+  For example,
+    - when seeing the `"` symbol, multiplex to lexString.
+    - When seeing the `[` symbol, multiplex to lexArray.
+    - when seeing the `{` symbol, multiplex to lexObject.
+
+  The last 2 are complex, because we compose them from lexString recursively.
+
+  Therefore, the monad must support a polymorphic type that can track 3 separate states:
+    1. the state while lexString
+    2. the state while lexArray
+    3. the state while lexObject
+
+  *assuming that we are composing (lexObject . lexArray . lexString)
+
+  What is my source input? I need a characteristic source input?
+--}
+
+-- | the source input, which should be a string of finite length.
+type SourceInput = [Char]
+
+-- | the list of tokens to be lexed, which should be finite up to the string's length.
+type Tokens = [Token]
+
+-- | the state to be passed between functions inside a Lexer monad.
+type State = (SourceInput, Tokens)
+
+-- | the lexer monad to be unified all lexing functions. Results in either an error or a state.
+type LexerM = Either ErrorMsg State
+
+type ErrorMsg = String
+
+{--
+  With these data types, we have a scheme of handling lexing combinations.
+--}
+
 {- | parses a source string continuously until seeing an expected WRAP.
 
 For example:
@@ -41,11 +79,19 @@ For example:
 ```
 lexString `abc\"` DBLQUOTE mempty == ("abc", "abc")
 ```
+
+  TODO: modify lexString to accommodate LexerM.
 -}
-lexString :: Source -> WRAP -> Output -> (Source, Output)
-lexString (x : xs) expect word
-  | matchSymbol x == expect = (xs, reverse word)
-  | otherwise = lexString xs expect (x : word)
+lexString :: State -> Maybe WRAP -> [Char] -> LexerM
+lexString state Nothing string = Right state
+lexString (x : xs, ts) (Just expect) string
+  | matchSymbol x == expect =
+      let found = Text (reverse string)
+       in lexString
+            (xs, MoreWork found : Wrapper expect : ts)
+            Nothing
+            string
+  | otherwise = lexString (xs, ts) (Just expect) (x : string)
 
 {--
   NOTE
