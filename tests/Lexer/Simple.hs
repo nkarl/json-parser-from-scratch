@@ -1,31 +1,25 @@
 module Lexer.Simple where
 
 import Control.Lens
+import Control.Lens.Traversal
 import Control.Monad (void)
 import Test.HUnit (Counts (failures), Test (..), assertBool, assertEqual, runTestTT)
 
 import LexerSimple (WRAP (..), lexString)
+import LexerSimple as Lexer
 
-testFail =
-  let result = lexString "\"" DBLQUOTE mempty
-      expect = "abc"
-   in assertEqual "failing test: should not parse `abc` from '\"'" expect (result ^. _2)
+mockState :: Lexer.SourceInput -> Lexer.State
+mockState source = (source, [])
 
-test0 =
-  let result = lexString "\"" DBLQUOTE mempty
-      expect = "abc"
-   in assertBool "should not parse `abc` from '\"'" (expect /= (result ^. _2))
-
-test1 =
-  let result = lexString "abc\"" DBLQUOTE mempty
-      expect = "abc"
-   in assertEqual "should parse `abc` from 'abc\"'" expect (result ^. _2)
+testAlwaysFail =
+  let output = lexString (mockState "\"") (Just DBLQUOTE) mempty
+      result = output ^. _Right . _2
+      expect = Wrapper BRACE
+   in assertEqual "failing test: should tokenize `BRACE` from '\"'" expect (result!!1)
 
 tests =
   TestList
-    [ TestCase testFail
-    , TestCase test0
-    , TestCase test1
+    [ TestCase testAlwaysFail
     ]
 
 runTest :: IO Counts

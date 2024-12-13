@@ -13,17 +13,20 @@ data DELIM
   = WhiteSpace
   | Comma
   | Colon
+  deriving (Show, Eq)
 
 data MULTIPOINT
   = Text String
   | Number Int
   | Boolean Bool
+  deriving (Show, Eq)
 
 data Token
   = Wrapper WRAP
   | Delimiter DELIM
   | MoreWork MULTIPOINT
   | EOF
+  deriving (Show, Eq)
 
 type Source = [Char]
 type Output = [Char]
