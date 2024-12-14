@@ -7,14 +7,14 @@ import Test.HUnit (Counts (failures), Test (..), assertBool, assertEqual, runTes
 
 import Lexer as LX
 
-mockState :: LX.SourceInput -> LX.State
-mockState source = (source, [])
+mockState :: [Char] -> LX.State
+mockState text = (Source text, [])
 
 testAlwaysFail =
-  let output = LX.lexString (mockState "\"") (Just LX.DBLQUOTE) mempty
+  let output = LX.poopString (mockState "\"") (Just LX.DBL_QUOTE) mempty
       result = output ^. _Right . _2
-      expect = LX.Wrapper LX.BRACE
-   in assertEqual "failing test: should tokenize `BRACE` from '\"'" expect (result !! 1)
+      expect = LX.MONO LX.RIGHT_BRACE
+   in assertEqual "failing test: should tokenize `BRACE` from the input `\"`" expect (result !! 1)
 
 tests =
   TestList
