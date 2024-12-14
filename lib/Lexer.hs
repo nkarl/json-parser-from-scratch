@@ -1,10 +1,10 @@
 module Lexer where
 
 {-
-  TODO: [x] modify poopString to accommodate LexerM.
-        [ ] map out the edge cases.
-        [ ] flatten the data type `Token` so I have to type less.
-        [ ] compose poopString with an enclosure that joins/creates a continuation
+  TODO: [x] modify lexString to accommodate LexerM.
+        [x] map out the edge cases of lexString.
+        [x] flatten the data type `Token` so I have to type less.
+        [ ] compose lexString with an enclosure that joins/creates a continuation
             between `matchChar` and the opening `Wrap`. This allows for filtering
             into different lexing functions (Number, String, Array, Object).
             Also, needs to comose them in order to define the enclosure recursively.
@@ -29,29 +29,9 @@ module Lexer where
       - Boolean Bool
 --}
 
-{--
-  NOTE need a custom monad, to multiplex different lexing functions.
-
-  For example,
-    - when seeing the `"` symbol, multiplex to poopString.
-    - When seeing the `[` symbol, multiplex to poopArray.
-    - when seeing the `{` symbol, multiplex to lexObject.
-
-  The last 2 are complex, because we compose them from poopString recursively.
-
-  Therefore, the monad must support a polymorphic type that can track 3 separate states:
-    1. the state while poopString
-    2. the state while poopArray
-    3. the state while lexObject
-
-  *assuming that we are composing (lexObject . poopArray . poopString)
-
-  What is my source input? I need a characteristic source input?
---}
-
 import Prelude
 
-data MonoChar
+data MetaToken
   = DBL_QUOTE
   | LEFT_BRACE
   | RIGHT_BRACE
@@ -63,15 +43,11 @@ data MonoChar
   | OTHER
   deriving (Show, Eq)
 
-data PolyChar
-  = STRING String
+data Token
+  = META MetaToken
+  | STRING String
   | NUMBER Int
   | BOOLEAN Bool
-  deriving (Show, Eq)
-
-data Token
-  = MONO MonoChar
-  | POLY PolyChar
   deriving (Show, Eq)
 
 matchChar x = case x of
@@ -88,7 +64,7 @@ matchChar x = case x of
 -- | the source input, which should be a string of finite length.
 newtype Source = Source [Char]
 
--- | the list of ts to be lexed, which should be finite up to the string's length.
+-- | the list of tokens to be lexed, which should be finite up to the string's length.
 type Tokens = [Token]
 
 -- | the state to be passed between functions inside a Lexer monad.
@@ -97,56 +73,81 @@ type State = (Source, Tokens)
 -- | the lexer monad to be unified all lexing functions. Results in either an error or a state.
 type LexerM = Either ErrorMsg State
 
-newtype ErrorMsg = Unterminated String deriving (Show)
+data ErrorMsg
+  = EOF
+  | Unterminated Token
+  deriving (Show, Eq)
 
--- | TODO creates a total enclosure for all lexing functions.
-eat :: State -> LexerM
-eat state =
+{- | total enclosure for all lexing functions and states.
+
+  For example,
+    1. when seeing the `"` symbol, multiplex to lexString.
+    2. When seeing the `[` symbol, multiplex to lexArray.
+    3. when seeing the `{` symbol, multiplex to lexObject.
+
+  The last 2 are complex, because we compose them from lexString recursively.
+
+  Therefore, the monad must support a polymorphic type that can track 3 separate states:
+    1. the state while lexString
+    2. the state while lexArray
+    3. the state while lexObject
+
+  *assuming that we are composing (lexObject . lexArray . lexString)
+-}
+runLexer :: State -> LexerM
+runLexer (Source mempty, []) = Left EOF -- TODO write test
+runLexer state =
   let
     (Source (x : xs), ts) = state
    in
     case matchChar x of
-      WHITESPACE -> eat (Source xs, ts)
-      DBL_QUOTE -> poopString state (Just DBL_QUOTE) mempty
-      LEFT_BRACE -> poopArray state (Just RIGHT_BRACE) mempty
-      LEFT_BRACKET -> poopObjet state (Just RIGHT_BRACKET) mempty
+      WHITESPACE -> runLexer (Source xs, ts)
+      DBL_QUOTE -> lexString state (Just DBL_QUOTE) mempty
+      LEFT_BRACE -> lexArray state (Just RIGHT_BRACE) mempty
+      LEFT_BRACKET -> lexObject state (Just RIGHT_BRACKET) mempty
 
--- | TODO needs to be composed from poopString
-poopObjet :: State -> Maybe MonoChar -> [Token] -> LexerM
-poopObjet (Source [], _) (Just terminal) _ = Left $ Unterminated $ show terminal
-poopObjet state Nothing _ = Right state
-poopObjet (Source (x : xs), ts) (Just terminal) obj = undefined -- TODO
+-- | TODO: needs to be composed from lexString
+lexObject :: State -> Maybe MetaToken -> [Token] -> LexerM
+lexObject (Source [], _) (Just terminal) _ = Left $ Unterminated $ META terminal
+lexObject state Nothing _ = Right state
+lexObject (Source (x : xs), ts) (Just terminal) obj = undefined -- TODO
 
--- | TODO needs to be composed from poopString
-poopArray :: State -> Maybe MonoChar -> [Token] -> LexerM
-poopArray (Source [], _) (Just terminal) _ = Left $ Unterminated $ show terminal
-poopArray state Nothing _ = Right state
-poopArray (Source (x : xs), ts) (Just terminal) arr = undefined -- TODO
+-- | TODO needs to be composed from lexString
+lexArray :: State -> Maybe MetaToken -> [Token] -> LexerM
+lexArray (Source [], _) (Just terminal) _ = Left $ Unterminated $ META terminal
+lexArray state Nothing _ = Right state
+lexArray (Source (x : xs), ts) (Just terminal) arr = undefined -- TODO
 
 -- | TODO: need to tokenize any integers.
 lexNumber = undefined -- TODO
 
-{- | parses a source string continuously until seeing an expected MonoChar Wrap.
+{- | parses a source string continuously until seeing an expected MetaToken Wrap.
 
--- TODO: check for EOF.
+__Example 0:__
 
-__For example:__
+@
+input = ""
+reult = lexString input (Just DBL_QUOTE) mempty
+result == Left $ Unterminated (DBL_QUOTE) -- >>> True
+@
+__Example 1:__
 
 @
 input = "abc\\""
-reult = poopString input (Just DBL_QUOTE) mempty
+reult = lexString input (Just DBL_QUOTE) mempty
 result == ("", STRING "abc") -- >>> True
 @
 -}
-poopString :: State -> Maybe MonoChar -> [Char] -> LexerM
-poopString (Source [], _) (Just terminal) _ = Left $ Unterminated $ show terminal
-poopString state Nothing _ = Right state
-poopString (Source (x : xs), ts) (Just terminal) str
+lexString :: State -> Maybe MetaToken -> [Char] -> LexerM
+lexString (Source [], _) (Just terminal) _ = Left $ Unterminated $ META terminal
+lexString state Nothing _ = Right state
+lexString (Source (x : xs), ts) (Just terminal) str
   | matchChar x == terminal =
-      poopString (Source xs, tokens str) Nothing str
+      lexString (Source xs, makeStrToken str <> ts) Nothing str
   | otherwise =
-      poopString (Source xs, ts) (Just terminal) (x : str)
+      lexString (Source xs, ts) (Just terminal) (x : str)
  where
-  tokens [] = terminated : ts
-  tokens s = POLY (STRING (reverse s)) : terminated : ts
-  terminated = MONO terminal
+  makeStrToken :: String -> [Token]
+  makeStrToken [] = [terminated]
+  makeStrToken xs = [STRING (reverse xs), terminated]
+  terminated = META terminal
