@@ -79,7 +79,7 @@ executable json-parser-from-scratch
 library
     hs-source-dirs:   lib
     exposed-modules:
-                      LexerSimple
+                      Lexer
     build-depends:
         base ^>=4.18.2.1,
     

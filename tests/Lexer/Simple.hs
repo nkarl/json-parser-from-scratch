@@ -5,17 +5,16 @@ import Control.Lens.Traversal
 import Control.Monad (void)
 import Test.HUnit (Counts (failures), Test (..), assertBool, assertEqual, runTestTT)
 
-import LexerSimple (WRAP (..), lexString)
-import LexerSimple as Lexer
+import Lexer as LX
 
-mockState :: Lexer.SourceInput -> Lexer.State
+mockState :: LX.SourceInput -> LX.State
 mockState source = (source, [])
 
 testAlwaysFail =
-  let output = lexString (mockState "\"") (Just DBLQUOTE) mempty
+  let output = LX.lexString (mockState "\"") (Just LX.DBLQUOTE) mempty
       result = output ^. _Right . _2
-      expect = Wrapper BRACE
-   in assertEqual "failing test: should tokenize `BRACE` from '\"'" expect (result!!1)
+      expect = LX.Wrapper LX.BRACE
+   in assertEqual "failing test: should tokenize `BRACE` from '\"'" expect (result !! 1)
 
 tests =
   TestList

@@ -1,30 +1,30 @@
-module LexerSimple where
+module Lexer where
 
 import Prelude
 
-data WRAP
+data Wrap
   = BRACE
   | BRACKET
   | DBLQUOTE
   | Other
   deriving (Show, Eq)
 
-data DELIM
-  = WhiteSpace
-  | Comma
-  | Colon
+data Delim
+  = WHITESPACE
+  | COMMA
+  | COLON
   deriving (Show, Eq)
 
-data MULTIPOINT
-  = Text String
-  | Number Int
-  | Boolean Bool
+data MultiPoint
+  = STRING String
+  | NUMBER Int
+  | BOOLEAN Bool
   deriving (Show, Eq)
 
 data Token
-  = Wrapper WRAP
-  | Delimiter DELIM
-  | MoreWork MULTIPOINT
+  = Wrapper Wrap
+  | Delimiter Delim
+  | MoreWork MultiPoint
   | EOF
   deriving (Show, Eq)
 
@@ -75,7 +75,7 @@ type ErrorMsg = String
   With these data types, we have a scheme of handling lexing combinations.
 --}
 
-{- | parses a source string continuously until seeing an expected WRAP.
+{- | parses a source string continuously until seeing an expected Wrap.
 
 For example:
 
@@ -83,18 +83,19 @@ For example:
 lexString `abc\"` DBLQUOTE mempty == ("abc", "abc")
 ```
 
-  TODO: modify lexString to accommodate LexerM.
+  TODO: [x] modify lexString to accommodate LexerM.
+        [ ] map out all possible edge cases for this lexing.
+        [ ] flatten the data type `Token` so I have to type less.
 -}
-lexString :: State -> Maybe WRAP -> [Char] -> LexerM
-lexString state Nothing string = Right state
-lexString (x : xs, ts) (Just expect) string
+lexString :: State -> Maybe Wrap -> [Char] -> LexerM
+lexString ([], _) (Just expect) _ = Left "Error: Unterminated String."
+lexString state Nothing _ = Right state
+lexString (x : xs, tokens) (Just expect) string
   | matchSymbol x == expect =
-      let found = Text (reverse string)
-       in lexString
-            (xs, MoreWork found : Wrapper expect : ts)
-            Nothing
-            string
-  | otherwise = lexString (xs, ts) (Just expect) (x : string)
+      let element = MoreWork $ STRING (reverse string)
+          terminated = Wrapper expect
+       in lexString (xs, element : terminated : tokens) Nothing string
+  | otherwise = lexString (xs, tokens) (Just expect) (x : string)
 
 {--
   NOTE
