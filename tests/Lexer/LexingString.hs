@@ -1,4 +1,4 @@
-module Lexer.Simple where
+module Lexer.LexingString where
 
 import Control.Lens
 import Control.Lens.Traversal
@@ -22,7 +22,7 @@ testAlwaysFail0 =
 
 test0 =
   let
-    input = ""
+    input = mempty
     output = lexString (mockState input) (Just DBL_QUOTE) mempty
     result = output ^? _Left
     expect = Just $ Unterminated (META DBL_QUOTE)

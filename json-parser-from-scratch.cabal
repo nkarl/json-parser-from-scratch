@@ -97,4 +97,4 @@ test-suite json-parser-from-scratch-tests
         lens,
     other-modules:
         ExampleTest,
-        Lexer.Simple,
+        Lexer.LexingString,
