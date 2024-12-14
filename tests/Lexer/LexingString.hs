@@ -18,7 +18,7 @@ testAlwaysFail0 =
     result = output ^. _Right . _2
     expect = [META RIGHT_BRACE]
    in
-    assertEqual "this test ALWAYS fails. Should not tokenize `RIGHT_BRACE` from the input `\"`" expect result
+    assertEqual "ALWAYS fails. Must not tokenize `RIGHT_BRACE` from the input `\"`" expect result
 
 test0 =
   let

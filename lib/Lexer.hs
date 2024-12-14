@@ -8,6 +8,9 @@ module Lexer where
             between `matchChar` and the opening `Wrap`. This allows for filtering
             into different lexing functions (Number, String, Array, Object).
             Also, needs to comose them in order to define the enclosure recursively.
+        [ ] writes a lexer function (maybe inside runLexer) to lex with a predicate.
+            This should allow for composition of predicates, and it should try to use
+            the Alternative functor.
 -}
 
 {--
@@ -24,9 +27,9 @@ module Lexer where
       - Colon: separate a pair of key-value
 
     3. Complex data types that need additional work to transform from a valid String to the following
-      - Text String
-      - Number Int
-      - Boolean Bool
+      - STRING String
+      - NUMBER Int
+      - BOOLEAN Bool
 --}
 
 import Prelude
@@ -95,7 +98,7 @@ data ErrorMsg
   *assuming that we are composing (lexObject . lexArray . lexString)
 -}
 runLexer :: State -> LexerM
-runLexer (Source mempty, []) = Left EOF -- TODO write test
+runLexer (Source mempty, []) = Left EOF
 runLexer state =
   let
     (Source (x : xs), ts) = state
@@ -106,22 +109,33 @@ runLexer state =
       LEFT_BRACE -> lexArray state (Just RIGHT_BRACE) mempty
       LEFT_BRACKET -> lexObject state (Just RIGHT_BRACKET) mempty
 
--- | TODO: needs to be composed from lexString
+{- | TODO: needs to be composed from lexString and lexNumber
+
+__MetaTokens:__ `LEFT_BRACE`, `RIGHT_BRACE`, `COLON`, `COMMA`
+-}
 lexObject :: State -> Maybe MetaToken -> [Token] -> LexerM
 lexObject (Source [], _) (Just terminal) _ = Left $ Unterminated $ META terminal
 lexObject state Nothing _ = Right state
 lexObject (Source (x : xs), ts) (Just terminal) obj = undefined -- TODO
 
--- | TODO needs to be composed from lexString
+{- | TODO needs to be composed from lexString
+
+__MetaTokens:__ `LEFT_BRACKET`, `RIGHT_BRACKET`, `COMMA`
+-}
 lexArray :: State -> Maybe MetaToken -> [Token] -> LexerM
 lexArray (Source [], _) (Just terminal) _ = Left $ Unterminated $ META terminal
 lexArray state Nothing _ = Right state
 lexArray (Source (x : xs), ts) (Just terminal) arr = undefined -- TODO
 
--- | TODO: need to tokenize any integers.
+{- | TODO: need to tokenize any integers.
+
+__MetaTokens:__ `COMMA`
+-}
 lexNumber = undefined -- TODO
 
 {- | parses a source string continuously until seeing an expected MetaToken Wrap.
+
+__MetaTokens:__ `DBL_QUOTE`
 
 __Example 0:__
 

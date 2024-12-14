@@ -18,7 +18,7 @@ testAlwaysFail0 =
     result = output ^. _Right . _2
     expect = [META RIGHT_BRACE]
    in
-    assertEqual "should always fail to lex a token list from the empty input" expect result
+    assertEqual "ALWAYS fails. Must not lex a token list from the empty input" expect result
 
 test0 =
   let
