@@ -8,7 +8,7 @@ import Test.HUnit as HUnit
 
 import Lexer as LX
 
-mockState :: [Char] -> LX.State
+mockState :: [Char] -> LX.State Token
 mockState text = (Source text, [])
 
 testAlwaysFail0 =

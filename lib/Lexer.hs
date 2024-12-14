@@ -71,10 +71,20 @@ newtype Source = Source [Char]
 type Tokens = [Token]
 
 -- | the state to be passed between functions inside a Lexer monad.
-type State = (Source, Tokens)
+type State a = (Source, [a])
+
+type Element a = Either ErrorMsg (Source, a) -- to be constrained to Element Token
+
+-- TODO maybe implement functor instances, as well as natural transformation from Element to State.
+
+-- | the activating function to process the source input into an accepted token.
+type Lexing a = Source -> Element a
 
 -- | the lexer monad to be unified all lexing functions. Results in either an error or a state.
-type LexerM = Either ErrorMsg State
+type LexerM = Either ErrorMsg (State Token)
+
+-- lift :: Element Token ~> State Token
+-- lift = undefined
 
 data ErrorMsg
   = EOF
@@ -97,7 +107,7 @@ data ErrorMsg
 
   *assuming that we are composing (lexObject . lexArray . lexString)
 -}
-runLexer :: State -> LexerM
+runLexer :: State Token -> LexerM
 runLexer (Source mempty, []) = Left EOF
 runLexer state =
   let
@@ -113,7 +123,7 @@ runLexer state =
 
 __MetaTokens:__ `LEFT_BRACE`, `RIGHT_BRACE`, `COLON`, `COMMA`
 -}
-lexObject :: State -> Maybe MetaToken -> [Token] -> LexerM
+lexObject :: State Token -> Maybe MetaToken -> [Token] -> LexerM
 lexObject (Source [], _) (Just terminal) _ = Left $ Unterminated $ META terminal
 lexObject state Nothing _ = Right state
 lexObject (Source (x : xs), ts) (Just terminal) obj = undefined -- TODO
@@ -122,7 +132,7 @@ lexObject (Source (x : xs), ts) (Just terminal) obj = undefined -- TODO
 
 __MetaTokens:__ `LEFT_BRACKET`, `RIGHT_BRACKET`, `COMMA`
 -}
-lexArray :: State -> Maybe MetaToken -> [Token] -> LexerM
+lexArray :: State Token -> Maybe MetaToken -> [Token] -> LexerM
 lexArray (Source [], _) (Just terminal) _ = Left $ Unterminated $ META terminal
 lexArray state Nothing _ = Right state
 lexArray (Source (x : xs), ts) (Just terminal) arr = undefined -- TODO
@@ -152,7 +162,7 @@ reult = lexString input (Just DBL_QUOTE) mempty
 result == ("", STRING "abc") -- >>> True
 @
 -}
-lexString :: State -> Maybe MetaToken -> [Char] -> LexerM
+lexString :: State Token -> Maybe MetaToken -> [Char] -> LexerM
 lexString (Source [], _) (Just terminal) _ = Left $ Unterminated $ META terminal
 lexString state Nothing _ = Right state
 lexString (Source (x : xs), ts) (Just terminal) str
