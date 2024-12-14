@@ -84,8 +84,12 @@ lexString `abc\"` DBLQUOTE mempty == ("abc", "abc")
 ```
 
   TODO: [x] modify lexString to accommodate LexerM.
-        [ ] map out all possible edge cases for this lexing.
+        [ ] map out the edge cases.
         [ ] flatten the data type `Token` so I have to type less.
+        [ ] compose lexString with an enclosure that joins/creates a continuation
+            between `matchChar` and the opening `Wrap`. This allows for filtering
+            into different lexing functions (String, Array, Object).
+            Also, needs to comose them in order to define the enclosure recursively.
 -}
 lexString :: State -> Maybe Wrap -> [Char] -> LexerM
 lexString ([], _) (Just expect) _ = Left "Error: Unterminated String."
