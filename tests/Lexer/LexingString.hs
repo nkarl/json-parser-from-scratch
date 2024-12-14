@@ -9,7 +9,7 @@ import Test.HUnit as HUnit
 import Lexer as LX
 
 mockState :: [Char] -> LX.State
-mockState text = (Source text, [])
+mockState text = (Source text, mempty)
 
 testAlwaysFail0 =
   let
@@ -18,7 +18,7 @@ testAlwaysFail0 =
     result = output ^. _Right . _2
     expect = [META RIGHT_BRACE]
    in
-    assertEqual "should fail to tokenize `RIGHT_BRACE` from the input `\"`" expect result
+    assertEqual "this test ALWAYS fails. Should not tokenize `RIGHT_BRACE` from the input `\"`" expect result
 
 test0 =
   let
@@ -27,7 +27,7 @@ test0 =
     result = output ^? _Left
     expect = Just $ Unterminated (META DBL_QUOTE)
    in
-    assertEqual "should output an error message when input string is not terminated" expect result
+    assertEqual "should branch Left with ErrorMsg when input string is not terminated" expect result
 
 test1 =
   let
