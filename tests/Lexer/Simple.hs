@@ -11,14 +11,26 @@ mockState :: [Char] -> LX.State
 mockState text = (Source text, [])
 
 testAlwaysFail =
-  let output = LX.poopString (mockState "\"") (Just LX.DBL_QUOTE) mempty
-      result = output ^. _Right . _2
-      expect = LX.MONO LX.RIGHT_BRACE
-   in assertEqual "failing test: should tokenize `BRACE` from the input `\"`" expect (result !! 1)
+  let
+    input = "\""
+    output = LX.poopString (mockState input) (Just LX.DBL_QUOTE) mempty
+    result = output ^. _Right . _2
+    expect = [LX.MONO LX.RIGHT_BRACE]
+   in
+    assertEqual "should fail to tokenize `RIGHT_BRACE` from the input `\"`" expect result
 
+test0 =
+  let
+    input = "abc\""
+    output = LX.poopString (mockState input) (Just LX.DBL_QUOTE) mempty
+    result = output ^. _Right . _2
+    expect = [LX.POLY $ LX.STRING "abc", LX.MONO LX.DBL_QUOTE]
+   in
+    assertEqual "should tokenize `abc` from the input `abc\"`" expect result
 tests =
   TestList
     [ TestCase testAlwaysFail
+    , TestCase test0
     ]
 
 runTest :: IO Counts

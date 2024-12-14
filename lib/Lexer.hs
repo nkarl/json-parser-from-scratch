@@ -30,7 +30,7 @@ module Lexer where
 --}
 
 {--
-  NOTE: need a custom monad, to multiplex different lexing functions.
+  NOTE need a custom monad, to multiplex different lexing functions.
 
   For example,
     - when seeing the `"` symbol, multiplex to poopString.
@@ -113,13 +113,13 @@ eat state =
 
 -- | TODO needs to be composed from poopString
 poopObjet :: State -> Maybe MonoChar -> [Token] -> LexerM
-poopObjet (Source "", _) (Just terminal) _ = Left $ Unterminated $ show terminal
+poopObjet (Source [], _) (Just terminal) _ = Left $ Unterminated $ show terminal
 poopObjet state Nothing _ = Right state
 poopObjet (Source (x : xs), ts) (Just terminal) obj = undefined -- TODO
 
 -- | TODO needs to be composed from poopString
 poopArray :: State -> Maybe MonoChar -> [Token] -> LexerM
-poopArray (Source "", _) (Just terminal) _ = Left $ Unterminated $ show terminal
+poopArray (Source [], _) (Just terminal) _ = Left $ Unterminated $ show terminal
 poopArray state Nothing _ = Right state
 poopArray (Source (x : xs), ts) (Just terminal) arr = undefined -- TODO
 
@@ -128,20 +128,25 @@ lexNumber = undefined -- TODO
 
 {- | parses a source string continuously until seeing an expected MonoChar Wrap.
 
+-- TODO: check for EOF.
+
 __For example:__
 
 @
-poopString `abc\"` DBL_QUOTE mempty == ("\"", String )
+input = "abc\\""
+reult = poopString input (Just DBL_QUOTE) mempty
+result == ("", STRING "abc") -- >>> True
 @
 -}
 poopString :: State -> Maybe MonoChar -> [Char] -> LexerM
-poopString (Source "", _) (Just terminal) _ = Left $ Unterminated $ show terminal
+poopString (Source [], _) (Just terminal) _ = Left $ Unterminated $ show terminal
 poopString state Nothing _ = Right state
 poopString (Source (x : xs), ts) (Just terminal) str
   | matchChar x == terminal =
-      poopString (Source xs, t : terminated : ts) Nothing str
+      poopString (Source xs, tokens str) Nothing str
   | otherwise =
       poopString (Source xs, ts) (Just terminal) (x : str)
  where
-  t = POLY $ STRING (reverse str)
+  tokens [] = terminated : ts
+  tokens s = POLY (STRING (reverse s)) : terminated : ts
   terminated = MONO terminal
