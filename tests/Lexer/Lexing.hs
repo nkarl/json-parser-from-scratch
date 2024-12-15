@@ -25,9 +25,9 @@ test0 =
     input = mempty
     output = runLexer (mockState input)
     result = output ^? _Left
-    expect = Just EOF
+    expect = Just EmptyInput
    in
-    assertEqual "should branch Left with ErrorMsg when given an empty input (EOF)" expect result
+    assertEqual "should branch Left with ErrorMsg when given an empty input" expect result
 
 tests =
   TestList

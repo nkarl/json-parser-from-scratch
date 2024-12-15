@@ -1,13 +1,15 @@
 module Lexer where
 
+import Prelude
+
 {-
   TODO: [x] modify lexString to accommodate LexerM.
         [x] map out the edge cases of lexString.
         [x] flatten the data type `Token` so I have to type less.
-        [ ] compose lexString with an enclosure that joins/creates a continuation
-            between `matchChar` and the opening `Wrap`. This allows for filtering
-            into different lexing functions (Number, String, Array, Object).
-            Also, needs to comose them in order to define the enclosure recursively.
+        [ ] compose lexString within an enclosure that joins/creates a continuation
+            between `matchChar` and a matching opening `Wrap`. This allows for filtering
+            into different lexical contexts (Number, String, Array, Object, and so on).
+              - Also, needs to compose them such that to define the enclosure recursively.
         [ ] writes a lexer function (maybe inside runLexer) to lex with a predicate.
             This should allow for composition of predicates, and it should try to use
             the Alternative functor.
@@ -32,8 +34,6 @@ module Lexer where
       - BOOLEAN Bool
 --}
 
-import Prelude
-
 data MetaToken
   = DBL_QUOTE
   | LEFT_BRACE
@@ -53,6 +53,8 @@ data Token
   | BOOLEAN Bool
   deriving (Show, Eq)
 
+-- | the lexicon for mapping a character input to either a MetaToken or the entrypoint to more complex token processing.
+matchChar :: Char -> MetaToken
 matchChar x = case x of
   '"' -> DBL_QUOTE
   '[' -> LEFT_BRACKET
@@ -76,29 +78,28 @@ type State = (Source, Tokens)
 -- | the lexer monad to be unified all lexing functions. Results in either an error or a state.
 type LexerM = Either ErrorMsg State
 
+-- | the various error signals.
 data ErrorMsg
-  = EOF
+  = EmptyInput
   | Unterminated Token
   deriving (Show, Eq)
 
-{- | total enclosure for all lexing functions and states.
+{- | the total enclosure for all lexing functions and states.
 
   For example,
-    1. when seeing the `"` symbol, multiplex to lexString.
-    2. When seeing the `[` symbol, multiplex to lexArray.
-    3. when seeing the `{` symbol, multiplex to lexObject.
+  1. when seeing the @"@ symbol, tokenize it, and then multiplex to lexString _expecting_ @DBL_QUOTE@.
+  2. When seeing the @[@ symbol, tokenize it, and then multiplex to lexArray _expecting_ @RIGHT_BRACKET@.
+  3. when seeing the @{@ symbol, tokenize it, and then multiplex to lexObject _expecting_ @RIGHT_BRACE@.
 
-  The last 2 are complex, because we compose them from lexString recursively.
+  The last 2 are complex, because we compose them from lexString recursively. Therefore, the monad must support a polymorphic type that can track 3 separate states:
+  1. the state while lexString
+  2. the state while lexArray
+  3. the state while lexObject
 
-  Therefore, the monad must support a polymorphic type that can track 3 separate states:
-    1. the state while lexString
-    2. the state while lexArray
-    3. the state while lexObject
-
-  *assuming that we are composing (lexObject . lexArray . lexString)
+  NOTE: (WIP) _assuming that we are composing @lexObject . lexArray . lexString@._
 -}
 runLexer :: State -> LexerM
-runLexer (Source mempty, []) = Left EOF
+runLexer (Source mempty, []) = Left EmptyInput
 runLexer state =
   let
     (Source (x : xs), ts) = state
@@ -129,39 +130,49 @@ lexArray (Source (x : xs), ts) (Just terminal) arr = undefined -- TODO
 
 {- | TODO: need to tokenize any integers.
 
-__MetaTokens:__ `COMMA`
+  __MetaTokens:__ `COMMA`
 -}
-lexNumber = undefined -- TODO
+lexNumber :: State -> Maybe MetaToken -> (MetaToken -> Bool) -> [Char] -> LexerM
+lexNumber (Source [], _) (Just terminal) predicate _ = Left $ Unterminated $ META terminal -- TODO
+lexNumber state Nothing _ _ = Right state
+lexNumber (Source (x : xs), ts) (Just terminal) predicate str
+  | predicate (matchChar x) =
+      lexNumber (Source xs, mkNumberToken str <> ts) Nothing predicate str
+  | otherwise =
+      lexNumber (Source xs, ts) (Just terminal) predicate (x : str)
+ where
+  mkNumberToken [] = [terminated]
+  mkNumberToken xs = [NUMBER $ read (reverse xs), terminated]
+  terminated = META terminal
 
 {- | parses a source string continuously until seeing an expected MetaToken Wrap.
 
-__MetaTokens:__ `DBL_QUOTE`
+  __MetaTokens:__ `DBL_QUOTE`
 
-__Example 0:__
+  __Example 0:__
 
-@
-input = ""
-reult = lexString input (Just DBL_QUOTE) mempty
-result == Left $ Unterminated (DBL_QUOTE) -- >>> True
-@
-__Example 1:__
+  @
+  input = ""
+  reult = lexString input (Just DBL_QUOTE) mempty
+  result == Left $ Unterminated (DBL_QUOTE) -- >>> True
+  @
+  __Example 1:__
 
-@
-input = "abc\\""
-reult = lexString input (Just DBL_QUOTE) mempty
-result == ("", STRING "abc") -- >>> True
-@
+  @
+  input = "abc\\""
+  reult = lexString input (Just DBL_QUOTE) mempty
+  result == ("", STRING "abc") -- >>> True
+  @
 -}
 lexString :: State -> Maybe MetaToken -> [Char] -> LexerM
 lexString (Source [], _) (Just terminal) _ = Left $ Unterminated $ META terminal
-lexString state Nothing _ = Right state
 lexString (Source (x : xs), ts) (Just terminal) str
   | matchChar x == terminal =
-      lexString (Source xs, makeStrToken str <> ts) Nothing str
+      Right (Source xs, mkStrToken str <> ts)
   | otherwise =
       lexString (Source xs, ts) (Just terminal) (x : str)
  where
-  makeStrToken :: String -> [Token]
-  makeStrToken [] = [terminated]
-  makeStrToken xs = [STRING (reverse xs), terminated]
+  mkStrToken :: String -> [Token]
+  mkStrToken [] = [terminated]
+  mkStrToken xs = [STRING (reverse xs), terminated]
   terminated = META terminal
