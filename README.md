@@ -108,6 +108,7 @@ data ErrorMsg
 
 ### The Parser
 
+- TODO: I will get to it when I get to it.
 
 ## A Note about Early Optimization
 
